@@ -1,9 +1,28 @@
+import { jwtDecode } from "jwt-decode";
+import { useEffect, useState } from "react";
 import { Button, Col, Image, Nav, Row } from "react-bootstrap";
 import ProfilePostCard from "./ProfilePostCard";
 
 export default function ProfileMidBody() {
+    const [posts, setPosts] = useState([]);
     const url = "https://pbs.twimg.com/profile_banners/83072625/1602845571/1500x500";
     const pic = "https://pbs.twimg.com/profile_images/1587405892437221376/h167Jlb2_400x400.jpg";
+
+    const fetchPosts = (userId) => {
+        fetch(`https://4b355dca-9fb9-403e-bf80-0675cc4356df-00-16tntpxz0g1he.sisko.replit.dev/posts/user/${userId}`)
+            .then((res) => res.json())
+            .then((data) => setPosts(data))
+            .catch((error) => console.error('Error:', error))
+    }
+
+    useEffect(() => {
+        const token = localStorage.getItem('authToken');
+        if (token) {
+            const decodedToken = jwtDecode(token);
+            const userId = decodedToken.id;
+            fetchPosts(userId);
+        }
+    }, []);
 
     return (
         <Col sm={6} className="bg-light" style={{ border: '1px solid lightgrey' }}>
@@ -62,7 +81,9 @@ export default function ProfileMidBody() {
                             <Nav.Link eventKey="/link-4">Likes</Nav.Link>
                         </Nav.Item>
                     </Nav>
-                    <ProfilePostCard/>
+                    {posts.length > 0 && posts.map((post) => (
+                        <ProfilePostCard key={post.id} content={post.content} postId={post.id} />
+                    ))}
                 </Col>
             </Row>
         </Col>
