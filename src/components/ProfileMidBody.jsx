@@ -1,17 +1,18 @@
 import { jwtDecode } from "jwt-decode";
 import { useEffect } from "react";
-import { Button, Col, Image, Nav, Row, Spinner } from "react-bootstrap";
+import { Button, Col, Form, Image, InputGroup, Nav, Row, Spinner } from "react-bootstrap";
 import ProfilePostCard from "./ProfilePostCard";
-import { fetchPostsByUser } from "../features/posts/postsSlice";
+import { fetchPostsByUser, searchPost } from "../features/posts/postsSlice";
 import { useDispatch, useSelector } from "react-redux"; 
+import { useState } from "react";
 
 export default function ProfileMidBody() {
     const url = "https://pbs.twimg.com/profile_banners/83072625/1602845571/1500x500";
     const pic = "https://pbs.twimg.com/profile_images/1587405892437221376/h167Jlb2_400x400.jpg";
 
     const dispatch = useDispatch();
-    const posts = useSelector((store) => store.posts.posts);
-    const loading = useSelector((store) => store.posts.loading);
+    const { posts, loading, error } = useSelector((state) => state.posts);
+    const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
         const token = localStorage.getItem('authToken');
@@ -22,8 +23,35 @@ export default function ProfileMidBody() {
         }
     }, [dispatch]);
 
+    const handleSearch = (e) => {
+        e.preventDefault();
+        const token = localStorage.getItem('authToken');
+        if (searchTerm.trim()) {
+            dispatch(searchPost(searchTerm));
+        } else {
+            const decodedToken = jwtDecode(token)
+            const userId = decodedToken.id;
+            dispatch(fetchPostsByUser(userId));
+        }
+    }
+
     return (
         <Col sm={6} className="bg-light" style={{ border: '1px solid lightgrey' }}>
+            <div className="p-4">
+                <Form onSubmit={handleSearch}>
+                    <InputGroup>
+                        <Form.Control
+                            type="text"
+                            placeholder="Search tweets...."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}    
+                        />
+                        <Button variant="outline-secondary" type="submit">
+                            Search
+                        </Button>
+                    </InputGroup>
+                </Form>
+            </div>
             <Image src={url} fluid/>
             <br />
             <Image
@@ -82,9 +110,16 @@ export default function ProfileMidBody() {
                     {loading && (
                         <Spinner animation="border" className="ms-3 mt-3" variant="primary" />
                     )}
+
                     {posts.length > 0 && posts.map((post) => (
                         <ProfilePostCard key={post.id} content={post.content} postId={post.id} />
                     ))}
+
+                    {error && <p className="text-red-500">{error}</p>}
+
+                    {!loading && posts.length === 0 && (
+                        <p className="text-center mt-3">No posts found.</p>
+                    )}
                 </Col>
             </Row>
         </Col>

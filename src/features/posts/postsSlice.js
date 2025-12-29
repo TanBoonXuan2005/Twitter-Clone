@@ -24,6 +24,12 @@ export const savePost = createAsyncThunk("posts/savePost", async (postContent) =
     return response.data;
 });
 
+export const searchPost = createAsyncThunk("posts/searchPost", async (searchTerm) => {
+  const response = await axios.get(`${BASE_URL}/posts/search?q=${searchTerm}`);
+  return response.data;
+});
+
+
 
 const postSlice = createSlice({
   name: "post",
@@ -40,6 +46,14 @@ const postSlice = createSlice({
     builder.addCase(savePost.fulfilled, (state, action) => {
       state.posts = [action.payload, ...state.posts];
     });
+    builder.addCase(searchPost.pending, (state) => {
+        state.loading = true
+    })
+    builder.addCase(searchPost.fulfilled, (state, action) => {
+        state.posts = action.payload
+        state.loading = false
+    })
+    
   }
 });
 
