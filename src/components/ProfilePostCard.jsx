@@ -5,65 +5,47 @@ import axios from "axios";
 
 export default function ProfilePostCard({ content, postId }) {
     const pic = 'https://pbs.twimg.com/profile_images/1587405892437221376/h167Jlb2_400x400.jpg';
-    const [likes, setLikes] = useState(0);
-    const [liked, setLiked] = useState(false);
-
-    const handleUnlike = () => {
-        setLiked(false);
-        setLikes(likes - 1);
-        const token = localStorage.getItem('authToken');
-
-        axios.delete(`https://4b355dca-9fb9-403e-bf80-0675cc4356df-00-16tntpxz0g1he.sisko.replit.dev/likes/${postId}`,
-            {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            }
-        )
-        .then((response) => {
-            console.log('Unliked successfully:', response.data);
-        })
-        .catch((error) => {
-            console.error('Error:', error);
-            setLiked(true);
-            setLikes(likes + 1);
-        });
-    }
-
-    const handleLike = () => {
-        setLiked(true);
-        setLikes(likes + 1);
-        const token = localStorage.getItem('authToken');
-        const decode = jwtDecode(token);
-        const userId = decode.id;
-        const data = {
-            user_id: userId,
-            post_id: postId,
-        };
-
-        axios.post(`https://4b355dca-9fb9-403e-bf80-0675cc4356df-00-16tntpxz0g1he.sisko.replit.dev/likes`, data, {
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
-        })
-        .then((response) => {
-            console.log('Liked successfully:', response.data);
-        }).catch((error) => {
-            console.error('Error:', error);
-            setLiked(false);
-            setLikes(likes - 1);
-        
-        });
-    }
+    const BASE_URL = 'https://4b355dca-9fb9-403e-bf80-0675cc4356df-00-16tntpxz0g1he.sisko.replit.dev';
+    const [likes, setLikes] = useState([]);
     
+    const token = localStorage.getItem('authToken');
+    const decode = jwtDecode(token);
+    const userId = decode.id;
+
     useEffect(() => {
-        fetch(`https://4b355dca-9fb9-403e-bf80-0675cc4356df-00-16tntpxz0g1he.sisko.replit.dev/likes/post/${postId}`)
-        .then((res) => res.json())
-        .then((data) => setLikes(data.length))
+        fetch(`${BASE_URL}/likes/post/${postId}`)
+        .then((response) => response.json())
+        .then((data) => setLikes(data))
         .catch((error) => console.error('Error:', error));
     }, [postId]);
 
+    const isLiked = likes.some((like) => like.user_id === userId);
 
+    const handleLike = () => (isLiked ? removeFromLikes() : addToLikes());
+
+    const addToLikes = () => {
+        axios.post(`${BASE_URL}/likes`, {
+            user_id: userId,
+            post_id: postId
+        })
+        .then((response) => {
+            setLikes([...likes,{...response.data, likes_id: response.data.id}]);
+        })
+        .catch((error) => console.error('Error:', error));
+    }
+
+    const removeFromLikes = () => {
+        const like = likes.find((like) => like.user_id === userId);
+        if (like) {
+            axios
+                .put(`${BASE_URL}/likes/${userId}/${postId}`)
+                .then(() => {
+                    setLikes(likes.filter((likeItem) => likeItem.user_id !== userId));
+                })
+                .catch((error) => console.error('Error:', error));
+        }
+    }
+    
     return (
         <Row
             className="p-3"
@@ -87,12 +69,13 @@ export default function ProfilePostCard({ content, postId }) {
                     <Button variant="light">
                         <i className="bi bi-repeat"></i>
                     </Button>
-                    <Button variant="light" onClick={liked ? handleUnlike : handleLike}>
-                        {liked ? (
-                            <i className="bi bi-heart-fill text-danger"> {likes}</i>
+                    <Button variant="light" onClick={handleLike}>
+                        {isLiked ? (
+                            <i className="bi bi-heart-fill text-danger"></i>
                         ) : (
-                            <i className="bi bi-heart"> {likes}</i>
+                            <i className="bi bi-heart"></i>
                         )}
+                        {likes.length}
                     </Button>
                     <Button variant="light">
                         <i className="bi bi-graph-up"></i>

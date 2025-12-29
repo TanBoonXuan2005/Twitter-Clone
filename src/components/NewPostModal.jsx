@@ -1,31 +1,17 @@
-import axios from "axios";
 import { useState } from "react";
 import { Button, Form, Modal } from "react-bootstrap";
-import { jwtDecode } from "jwt-decode";
+import { useDispatch } from "react-redux";
+import { savePost } from "../features/posts/postsSlice";
+
 
 export default function NewPostModal({ show, handleClose }) {
     const [postContent, setPostContent] = useState('');
+    const dispatch = useDispatch();
 
     const handleSave = () => {
-        const token = localStorage.getItem('authToken');
-        const decode = jwtDecode(token);
-        const userId = decode.id;
-
-        const data = {
-            title: 'Post Title',
-            content: postContent,
-            user_id: userId,
-        };
-
-        axios
-            .post('https://4b355dca-9fb9-403e-bf80-0675cc4356df-00-16tntpxz0g1he.sisko.replit.dev/posts', data)
-            .then((response) => {
-                console.log('Success:', response.data);
-                handleClose();
-            })
-            .catch((error) => {
-                console.error('Error:', error);
-            });
+        dispatch(savePost(postContent))
+        handleClose();
+        setPostContent('')
     }
 
     return (
