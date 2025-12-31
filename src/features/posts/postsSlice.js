@@ -1,35 +1,96 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import axios from "axios";
-import { jwtDecode } from "jwt-decode";
-
-const BASE_URL = "https://4b355dca-9fb9-403e-bf80-0675cc4356df-00-16tntpxz0g1he.sisko.replit.dev"
+import { collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
+import { db } from "../../firebase";
 
 export const fetchPostsByUser = createAsyncThunk("posts/fetchPostsByUser", async (userId) => {
-  const response = await fetch(`${BASE_URL}/posts/user/${userId}`);
-  return response.json();
+  try {
+    const postsRef = collection(db, `users/${userId}/posts`);
+    const querySnapshot = await getDocs(postsRef);
+    const docs = querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    return docs;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
 });
 
-export const savePost = createAsyncThunk("posts/savePost", async (postContent) => {
-    const token = localStorage.getItem('authToken')
-    const decode = jwtDecode(token)
-    const userId = decode.id
+export const savePost = createAsyncThunk("posts/savePost", async ({userId, postContent}) => {
+    try {
+      const postsRef = collection(db, `users/${userId}/posts`);
+      console.log(`users/${userId}/posts`);
+      const newPostRef = doc(postsRef);
+      console.log(postContent);
+      await setDoc(newPostRef, { content: postContent, likes: [] });
+      const newPost = await getDoc(newPostRef);
 
-    const data = {
-        title: "Post title",
-        content: postContent,
-        user_id: userId
+      const post = {
+        id: newPost.id,
+        ...newPost.data()
+      
+      }
+      return post;
+    } catch (error) {
+        console.error(error);
+        throw error;
     }
-    
-    const response = await axios.post(`${BASE_URL}/posts`, data);
-    return response.data;
 });
 
-export const searchPost = createAsyncThunk("posts/searchPost", async (searchTerm) => {
-  const response = await axios.get(`${BASE_URL}/posts/search?q=${searchTerm}`);
-  return response.data;
+export const searchPost = createAsyncThunk("posts/searchPost", async ({ userId, searchTerm }) => {
+  try {
+    const postsRef = collection(db, `users/${userId}/posts`);
+    const querySnapshot = await getDocs(postsRef);
+    const docs = querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    const filteredPosts = docs.filter((post) => 
+      post.content.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    return filteredPosts;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
 });
 
+export const likePost = createAsyncThunk("posts/likePost", async ({userId, postId}) => {
+  try {
+    const postRef = doc(db, `users/${userId}/posts/${postId}`);
+    const docSnap = await getDoc(postRef);
+   
+    if (docSnap.exists()){
+      const postData = docSnap.data();
+      const likes = [...postData.likes, userId];
+      await setDoc(postRef, {...postData, likes});
+    }
 
+    return {userId, postId};
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+})
+
+export const removeLikeFromPost = createAsyncThunk("posts/removeLikeFromPost", async ({userId, postId}) => {
+  try {
+    const postRef = doc(db, `users/${userId}/posts/${postId}`);
+    const docSnap = await getDoc(postRef);
+   
+    if (docSnap.exists()){
+      const postData = docSnap.data();
+      const likes = postData.likes.filter((id) => id !== userId);
+      await setDoc(postRef, {...postData, likes});
+    }
+
+    return {userId, postId};
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+})
 
 const postSlice = createSlice({
   name: "post",
@@ -39,20 +100,39 @@ const postSlice = createSlice({
   },
   reducers: {},
   extraReducers: (builder) => {
-    builder.addCase(fetchPostsByUser.fulfilled, (state, action) => {
+    builder
+      .addCase(fetchPostsByUser.fulfilled, (state, action) => {
       state.posts = action.payload;
       state.loading = false;
-    });
-    builder.addCase(savePost.fulfilled, (state, action) => {
+      })
+      .addCase(savePost.fulfilled, (state, action) => {
       state.posts = [action.payload, ...state.posts];
-    });
-    builder.addCase(searchPost.pending, (state) => {
+      })
+      .addCase(likePost.fulfilled, (state, action) => {
+        const {userId, postId} = action.payload;
+        const postIndex = state.posts.findIndex((post) => post.id === postId);
+
+        if (postIndex !== -1) {
+          state.posts[postIndex].likes.push({userId});
+        }
+      })
+      .addCase(removeLikeFromPost.fulfilled, (state, action) => {
+        const {userId, postId} = action.payload;
+        const postIndex = state.posts.findIndex((post) => post.id === postId);
+
+        if (postIndex !== -1) {
+          state.posts[postIndex].likes = state.posts[postIndex].likes.filter(
+            (id) => id !== userId
+          );
+        }
+      })
+      .addCase(searchPost.pending, (state) => {
         state.loading = true
-    })
-    builder.addCase(searchPost.fulfilled, (state, action) => {
+      })
+      .addCase(searchPost.fulfilled, (state, action) => {
         state.posts = action.payload
         state.loading = false
-    })
+      })
     
   }
 });

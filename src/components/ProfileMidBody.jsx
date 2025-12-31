@@ -1,26 +1,24 @@
 import { jwtDecode } from "jwt-decode";
-import { useEffect } from "react";
+import { useContext, useEffect } from "react";
 import { Button, Col, Form, Image, InputGroup, Nav, Row, Spinner } from "react-bootstrap";
 import ProfilePostCard from "./ProfilePostCard";
 import { fetchPostsByUser, searchPost } from "../features/posts/postsSlice";
 import { useDispatch, useSelector } from "react-redux"; 
+import { AuthContext } from "../components/AuthProvider";
 import { useState } from "react";
 
 export default function ProfileMidBody() {
     const url = "https://pbs.twimg.com/profile_banners/83072625/1602845571/1500x500";
     const pic = "https://pbs.twimg.com/profile_images/1587405892437221376/h167Jlb2_400x400.jpg";
 
+    const dispatch = useDispatch();
     const { posts, loading, error } = useSelector((state) => state.posts);
     const [searchTerm, setSearchTerm] = useState('');
+    const { currentUser } = useContext(AuthContext);
 
-    // useEffect(() => {
-    //     const token = localStorage.getItem('authToken');
-    //     if (token) {
-    //         const decodedToken = jwtDecode(token);
-    //         const userId = decodedToken.id;
-    //         dispatch(fetchPostsByUser(userId));
-    //     }
-    // }, [dispatch]);
+    useEffect(() => {
+        dispatch(fetchPostsByUser(currentUser.uid));
+    }, [dispatch, currentUser]);
 
     const handleSearch = (e) => {
         e.preventDefault();
@@ -111,7 +109,7 @@ export default function ProfileMidBody() {
                     )}
 
                     {posts.length > 0 && posts.map((post) => (
-                        <ProfilePostCard key={post.id} content={post.content} postId={post.id} />
+                        <ProfilePostCard key={post.id} post={post} />
                     ))}
 
                     {error && <p className="text-red-500">{error}</p>}
